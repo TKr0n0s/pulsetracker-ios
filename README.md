@@ -6,7 +6,7 @@ purchases and renewals are credited to the right link and social network.
 ## Install (one line of code)
 
 1. Xcode → File → Add Package Dependencies → paste
-   `https://github.com/TKr0n0s/pulsetracker-ios` → Up to Next Major `0.1.0`.
+   `https://github.com/TKr0n0s/pulsetracker-ios` → Up to Next Major `0.2.0`.
 2. After RevenueCat is configured:
 
 ```swift
@@ -22,6 +22,21 @@ PulseTracker.configure(appKey: "pk_…", appUserID: Purchases.shared.appUserID)
    value from PulseTracker → App links → Developer.
 
 That's all. Requires iOS 15+.
+
+## Paywall views (optional)
+
+Adds a "Saw a paywall" step to your funnel:
+
+```swift
+PulseTracker.paywallShown(placement: "onboarding")   // when your paywall appears
+PulseTracker.paywallClosed(placement: "onboarding")  // dismissed without buying
+```
+
+- **Superwall:** in `handleSuperwallEvent`, on `.paywallOpen` call
+  `PulseTracker.paywallShown(placement: …, source: .superwall)`.
+- **RevenueCat Paywalls (no code):** RevenueCat → Integrations → PostHog →
+  Self-hosted, domain `https://api.pulsetracker.io/ph`, API key = your PulseTracker
+  app key, enable "Send Paywall events". (Experimental: verify your first events.)
 
 ## What it does
 

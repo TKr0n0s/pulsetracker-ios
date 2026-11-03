@@ -112,4 +112,14 @@ final class CoreTests: XCTestCase {
         a.pending = nil
         XCTAssertNil(b.pending)
     }
+
+    func testPaywallEventRequest() throws {
+        let e = EventBody(event_id: "b4f5e1c2-3b4d-4e5f-9a8b-7c6d5e4f3a2c", open_id: body.open_id, name: "paywall_view",
+                          source: "superwall", placement: "onboarding", environment: "production", at: 1)
+        let r = try sender().request(e, path: "v1/app/event")
+        XCTAssertEqual(r.url?.absoluteString, "https://api.example.test/v1/app/event")
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: r.httpBody!) as? [String: Any])
+        XCTAssertEqual(json["name"] as? String, "paywall_view")
+        XCTAssertEqual(json["source"] as? String, "superwall")
+    }
 }

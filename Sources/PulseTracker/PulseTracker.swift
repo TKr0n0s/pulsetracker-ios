@@ -32,6 +32,17 @@ public enum PulseTracker {
     public static func identify(_ appUserID: String) {
         Task.detached(priority: .utility) { await Runner.shared.run(appUserID: appUserID) }
     }
+
+    /// Call when a paywall becomes visible (adds "Saw a paywall" to your funnel).
+    /// Superwall: call it from `handleSuperwallEvent` on `.paywallOpen` with `source: .superwall`.
+    public static func paywallShown(placement: String? = nil, source: PaywallSource = .sdk) {
+        Task.detached(priority: .utility) { await Runner.shared.event("paywall_view", placement: placement, source: source) }
+    }
+
+    /// Call when a paywall is dismissed without a purchase.
+    public static func paywallClosed(placement: String? = nil, source: PaywallSource = .sdk) {
+        Task.detached(priority: .utility) { await Runner.shared.event("paywall_close", placement: placement, source: source) }
+    }
 }
 
 /// Serializes every report: one open at a time, state never raced.
@@ -42,6 +53,15 @@ actor Runner {
     private let store = Store()
 
     func configure(_ s: Sender, env: PulseEnvironment) { sender = s; environment = env }
+
+    /// One paywall event; retried like the open, keyed by its own id so the server stores it once.
+    func event(_ name: String, placement: String?, source: PaywallSource) async {
+        guard let sender else { return }
+        let body = EventBody(event_id: UUID().uuidString.lowercased(), open_id: store.openId, name: name,
+                             source: source.rawValue, placement: placement.map { String($0.prefix(120)) },
+                             environment: environment.rawValue, at: Date().timeIntervalSince1970 * 1000)
+        _ = await sender.send(body, path: "v1/app/event", startedAt: Date())
+    }
 
     func run(appUserID: String?) async {
         guard let sender else { return }

@@ -116,8 +116,8 @@ struct Sender {
     var sleep: (TimeInterval) async -> Void = { s in try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }
     var now: () -> Date = Date.init
 
-    func request(_ body: OpenBody) throws -> URLRequest {
-        var req = URLRequest(url: apiBase.appendingPathComponent("v1/app/open"))
+    func request<B: Encodable>(_ body: B, path: String = "v1/app/open") throws -> URLRequest {
+        var req = URLRequest(url: apiBase.appendingPathComponent(path))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "content-type")
         req.setValue(appKey, forHTTPHeaderField: "X-PT-App-Key")
@@ -125,13 +125,13 @@ struct Sender {
         return req
     }
 
-    /// Returns true once the server has the open (or refused it for good).
-    func send(_ body: OpenBody, startedAt: Date) async -> Bool {
+    /// Returns true once the server has the body (or refused it for good).
+    func send<B: Encodable>(_ body: B, path: String = "v1/app/open", startedAt: Date) async -> Bool {
         var delay = Backoff.first
         while now().timeIntervalSince(startedAt) < Backoff.deadline {
             var wait: TimeInterval? = nil
             do {
-                let (_, resp) = try await session.data(for: try request(body))
+                let (_, resp) = try await session.data(for: try request(body, path: path))
                 let http = resp as? HTTPURLResponse
                 switch outcome(status: http?.statusCode ?? 0, retryAfter: http?.value(forHTTPHeaderField: "retry-after")) {
                 case .done: return true
@@ -143,4 +143,18 @@ struct Sender {
         }
         return true // deadline passed: stop trying for this install
     }
+}
+
+/// Who reported a paywall event.
+public enum PaywallSource: String, Codable, Sendable { case sdk, superwall, revenuecat }
+
+/// Body of `POST /v1/app/event`.
+struct EventBody: Codable, Equatable {
+    var event_id: String
+    var open_id: String
+    var name: String
+    var source: String
+    var placement: String?
+    var environment: String
+    var at: Double
 }

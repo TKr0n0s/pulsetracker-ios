@@ -29,8 +29,10 @@ public enum PulseTracker {
     }
 
     /// Call after your user logs in (RevenueCat `logIn`) so the new id is known.
-    public static func identify(_ appUserID: String) {
-        Task.detached(priority: .utility) { await Runner.shared.run(appUserID: appUserID) }
+    /// Pass the email/phone your quiz or landing page collected to link this
+    /// customer to the web funnel they came through (hashed server-side, never stored raw).
+    public static func identify(_ appUserID: String, email: String? = nil, phone: String? = nil) {
+        Task.detached(priority: .utility) { await Runner.shared.run(appUserID: appUserID, email: email, phone: phone) }
     }
 
     /// Call when a paywall becomes visible (adds "Saw a paywall" to your funnel).
@@ -63,7 +65,7 @@ actor Runner {
         _ = await sender.send(body, path: "v1/app/event", startedAt: Date())
     }
 
-    func run(appUserID: String?) async {
+    func run(appUserID: String?, email: String? = nil, phone: String? = nil) async {
         guard let sender else { return }
         var body: OpenBody
         if let pending = store.pending {
@@ -80,13 +82,15 @@ actor Runner {
                 signals: await Device.signals()
             )
             store.reported = true
-        } else if let id = appUserID, id != store.sentUserId {
+        } else if let id = appUserID, id != store.sentUserId || email != nil || phone != nil {
             // Later identity (login): same open, new id — the server backfills it.
             body = OpenBody(open_id: store.openId, environment: environment.rawValue,
                             app_user_id: id, clipboard_token: nil, install_referrer: nil, signals: Signals())
         } else {
             return
         }
+        if email != nil { body.email = email }
+        if phone != nil { body.phone = phone }
 
         store.pending = body
         let started = store.firstAttemptAt ?? Date()

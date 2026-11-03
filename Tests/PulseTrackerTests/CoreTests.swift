@@ -53,6 +53,15 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(Handoff.token(in: fixture.clipboard_token!), fixture.clipboard_token, "the SDK uploads the pt1_ form")
     }
 
+    func testIdentifyCarriesEmailAndPhone() throws {
+        var b = body
+        b.email = "ana@example.com"; b.phone = "+5511912345678"
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(b)) as? [String: Any])
+        XCTAssertEqual(json["email"] as? String, "ana@example.com")
+        XCTAssertEqual(json["phone"] as? String, "+5511912345678")
+        XCTAssertNil(try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(body)) as? [String: Any])["email"])
+    }
+
     func testRequestShape() throws {
         let r = try sender().request(body)
         XCTAssertEqual(r.url?.absoluteString, "https://api.example.test/v1/app/open")

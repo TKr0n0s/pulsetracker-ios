@@ -6,7 +6,7 @@ purchases and renewals are credited to the right link and social network.
 ## Install (one line of code)
 
 1. Xcode → File → Add Package Dependencies → paste
-   `https://github.com/TKr0n0s/pulsetracker-ios` → Up to Next Major `0.2.0`.
+   `https://github.com/TKr0n0s/pulsetracker-ios` → Up to Next Major `0.3.0`.
 2. After RevenueCat is configured:
 
 ```swift
@@ -17,7 +17,10 @@ PulseTracker.configure(appKey: "pk_…", appUserID: Purchases.shared.appUserID)
 ```
 
 3. If your app logs users in, after `Purchases.shared.logIn(id)` also call
-   `PulseTracker.identify(id)`.
+   `PulseTracker.identify(id)`. If your quiz or landing page collected the
+   person's email or phone, pass it too — `PulseTracker.identify(id, email: email)`
+   — to see which web funnel each customer came through (hashed by PulseTracker,
+   never stored as typed).
 4. In RevenueCat → Integrations → Webhooks, paste the URL and Authorization
    value from PulseTracker → App links → Developer.
 
@@ -67,11 +70,12 @@ Sandbox installs only match **test clicks**, and only join RevenueCat
 
 ## Privacy
 
-`PrivacyInfo.xcprivacy` declares User ID, Device ID and Other usage data for
-analytics, and UserDefaults access (CA92.1). `NSPrivacyTracking` is `false` —
-**owner decision pending**: if it becomes `true` and `api.pulsetracker.io` is
-listed as a tracking domain, iOS 17+ blocks the SDK's network calls for every
-user who did not allow tracking.
+`PrivacyInfo.xcprivacy` declares User ID, Device ID, Other usage data, and
+Email address / Phone number (only sent when you pass them to `identify`) for
+analytics, plus UserDefaults access (CA92.1). `NSPrivacyTracking` is `false`:
+the data is used only for your own attribution. Listing `api.pulsetracker.io`
+as a tracking domain would make iOS 17+ block the SDK for users who did not
+allow tracking.
 
 ## Develop
 

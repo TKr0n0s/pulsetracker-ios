@@ -26,6 +26,9 @@ struct OpenBody: Codable, Equatable {
     var clipboard_token: String?
     var install_referrer: String?
     var signals: Signals
+    /// identify(email:phone:) only — the server hashes them and never stores the raw value.
+    var email: String? = nil
+    var phone: String? = nil
 }
 
 /// Clipboard content PulseTracker may upload: only its own handoff link

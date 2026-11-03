@@ -48,14 +48,26 @@ enum Device {
     /// Reads the clipboard only when it holds a URL, and returns it only when it
     /// is PulseTracker's own matching link. `detectedPatterns` never shows the
     /// iOS paste prompt, so people who did not come from a link never see it.
-    @MainActor static func handoffFromClipboard() async -> String? {
+    static func handoffFromClipboard() async -> String? {
         #if canImport(UIKit) && os(iOS)
-        let pb = UIPasteboard.general
-        guard pb.hasStrings else { return nil }
-        guard let found = try? await pb.detectedPatterns(for: [\.probableWebURL]),
-              found.contains(\.probableWebURL) else { return nil }
-        guard let s = pb.string else { return nil }
-        return Handoff.token(in: s)
+        // Off the main thread on purpose: reading `string` shows iOS's paste
+        // prompt and BLOCKS the calling thread until the person answers. On
+        // the main thread that freezes the app right at launch (and the iOS
+        // watchdog may kill a launch that hangs too long).
+        return await withCheckedContinuation { (done: CheckedContinuation<String?, Never>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let pb = UIPasteboard.general
+                guard pb.hasStrings else { return done.resume(returning: nil) }
+                pb.detectPatterns(for: [\.probableWebURL]) { result in
+                    guard case .success(let found) = result, found.contains(\.probableWebURL) else {
+                        return done.resume(returning: nil)
+                    }
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        done.resume(returning: pb.string.flatMap { Handoff.token(in: $0) })
+                    }
+                }
+            }
+        }
         #else
         return nil
         #endif

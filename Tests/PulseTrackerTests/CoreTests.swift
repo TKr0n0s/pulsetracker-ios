@@ -43,6 +43,8 @@ final class CoreTests: XCTestCase {
     func testEncodesTheSharedContract() throws {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("../../../contract/open-request.json").standardized
+        // The contract lives in the PulseTracker monorepo; the public mirror skips it.
+        guard FileManager.default.fileExists(atPath: url.path) else { throw XCTSkip("contract fixture lives in the monorepo") }
         let fixture = try JSONDecoder().decode(OpenBody.self, from: Data(contentsOf: url))
         let roundTrip = try JSONDecoder().decode(OpenBody.self, from: JSONEncoder().encode(fixture))
         XCTAssertEqual(roundTrip, fixture)

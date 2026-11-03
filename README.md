@@ -5,8 +5,8 @@ purchases and renewals are credited to the right link and social network.
 
 ## Install (one line of code)
 
-1. Xcode → File → Add Package Dependencies → the PulseTracker iOS package URL
-   (public repo pending; for now add this folder as a local package).
+1. Xcode → File → Add Package Dependencies → paste
+   `https://github.com/TKr0n0s/pulsetracker-ios` → Up to Next Major `0.1.0`.
 2. After RevenueCat is configured:
 
 ```swift
@@ -65,5 +65,6 @@ swift test                                   # core on macOS
 xcodebuild -scheme PulseTracker -destination 'generic/platform=iOS' build
 ```
 
-The request body is pinned by `../contract/open-request.json`, asserted by
-both `Tests/PulseTrackerTests` and the worker's `open-api.test.ts`.
+Source of truth is `sdks/ios` in the PulseTracker monorepo; this public repo is
+a mirror. The request body is pinned by `sdks/contract/open-request.json`
+(asserted by the Swift tests and the worker's `open-api.test.ts`).

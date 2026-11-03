@@ -27,8 +27,9 @@ That's all. Requires iOS 15+.
 
 - On the first launch only, it checks whether the clipboard holds a link
   (without reading it, so iOS shows no prompt). Only if it does, it reads it and
-  keeps it only when it is PulseTracker's own matching link
-  (`https://…/h/<token>` or `pt1_<token>`). Nothing else ever leaves the phone.
+  keeps it only when it is exactly PulseTracker's matching link
+  (`https://<link domain>/h/<token>` with nothing after it, or `pt1_<token>`).
+  Only the token is uploaded — never the copied text itself.
   iOS may show "Allow Paste" to people who copied a link.
 - Sends one install report: a random install id, your RevenueCat user id, the
   matching link (if any), OS version, languages, time zone, screen size.

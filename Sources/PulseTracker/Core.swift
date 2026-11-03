@@ -33,14 +33,22 @@ struct OpenBody: Codable, Equatable {
 enum Handoff {
     private static let tokenChars = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-")
 
+    /// Returns `pt1_<token>` — only the token is ever uploaded, never the copied text.
+    /// Accepted shapes: `pt1_<token>` or exactly `https://<host>/h/<token>` with no
+    /// credentials, query or fragment (the host may be a customer's own link domain).
     static func token(in raw: String) -> String? {
         let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard s.count <= 512 else { return nil }
-        if s.hasPrefix("pt1_") { return valid(String(s.dropFirst(4))) ? s : nil }
-        guard let url = URL(string: s), url.scheme == "https",
-              let range = url.path.range(of: "/h/") else { return nil }
-        let tail = url.path[range.upperBound...].split(separator: "/").first.map(String.init) ?? ""
-        return valid(tail) ? s : nil
+        if s.hasPrefix("pt1_") {
+            let t = String(s.dropFirst(4))
+            return valid(t) ? "pt1_" + t : nil
+        }
+        guard let c = URLComponents(string: s), c.scheme == "https", c.host?.isEmpty == false,
+              c.user == nil, c.password == nil, c.query == nil, c.fragment == nil,
+              let url = c.url, url.pathComponents.count == 3,
+              url.pathComponents[0] == "/", url.pathComponents[1] == "h" else { return nil }
+        let t = url.pathComponents[2]
+        return valid(t) ? "pt1_" + t : nil
     }
 
     private static func valid(_ t: String) -> Bool {

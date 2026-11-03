@@ -48,7 +48,7 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(roundTrip, fixture)
         let keys = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(fixture)) as? [String: Any]).keys
         XCTAssertEqual(Set(keys), ["open_id", "environment", "app_user_id", "clipboard_token", "signals"])
-        XCTAssertNotNil(Handoff.token(in: fixture.clipboard_token!))
+        XCTAssertEqual(Handoff.token(in: fixture.clipboard_token!), fixture.clipboard_token, "the SDK uploads the pt1_ form")
     }
 
     func testRequestShape() throws {
@@ -59,8 +59,15 @@ final class CoreTests: XCTestCase {
     }
 
     func testOnlyPulseTrackerLinksLeaveTheClipboard() {
-        XCTAssertNotNil(Handoff.token(in: "https://go.pulsetracker.io/h/AbCdEfGhIjKlMnOp_123"))
-        XCTAssertNotNil(Handoff.token(in: "  pt1_AbCdEfGhIjKl  "))
+        XCTAssertEqual(Handoff.token(in: "https://go.pulsetracker.io/h/AbCdEfGhIjKlMnOp_123"), "pt1_AbCdEfGhIjKlMnOp_123")
+        XCTAssertEqual(Handoff.token(in: "https://links.customer.app/h/AbCdEfGhIjKlMnOp_123"), "pt1_AbCdEfGhIjKlMnOp_123")
+        XCTAssertEqual(Handoff.token(in: "  pt1_AbCdEfGhIjKl  "), "pt1_AbCdEfGhIjKl")
+        // Never upload someone else's URL that merely contains /h/
+        XCTAssertNil(Handoff.token(in: "https://docs.example.com/team/h/PrivateDoc_12345"))
+        XCTAssertNil(Handoff.token(in: "https://go.pulsetracker.io/h/AbCdEfGhIjKlMnOp?secret=1"))
+        XCTAssertNil(Handoff.token(in: "https://go.pulsetracker.io/h/AbCdEfGhIjKlMnOp#frag"))
+        XCTAssertNil(Handoff.token(in: "https://user:pw@go.pulsetracker.io/h/AbCdEfGhIjKlMnOp"))
+        XCTAssertNil(Handoff.token(in: "https://go.pulsetracker.io/h/AbCdEfGhIjKlMnOp/extra"))
         XCTAssertNil(Handoff.token(in: "https://example.com/some/page"))
         XCTAssertNil(Handoff.token(in: "http://go.pulsetracker.io/h/AbCdEfGhIjKlMnOp"), "https only")
         XCTAssertNil(Handoff.token(in: "https://go.pulsetracker.io/h/short"))

@@ -75,11 +75,25 @@ actor Runner {
     private var environment: PulseEnvironment = .production
     private let store = Store()
 
-    func configure(_ s: Sender, env: PulseEnvironment) { sender = s; environment = env }
+    private var waiting: [CheckedContinuation<Sender, Never>] = []
+
+    func configure(_ s: Sender, env: PulseEnvironment) {
+        sender = s; environment = env
+        let w = waiting; waiting = []
+        for c in w { c.resume(returning: s) }
+    }
+
+    /// Calls made right after `configure` (identify, paywall events) can reach
+    /// the actor before configure finished detecting the environment: they
+    /// wait for it instead of being dropped.
+    private func ready() async -> Sender {
+        if let sender { return sender }
+        return await withCheckedContinuation { waiting.append($0) }
+    }
 
     /// One paywall event; retried like the open, keyed by its own id so the server stores it once.
     func event(_ name: String, placement: String?, source: PaywallSource) async {
-        guard let sender else { return }
+        let sender = await ready()
         let body = EventBody(event_id: UUID().uuidString.lowercased(), open_id: store.openId, name: name,
                              source: source.rawValue, placement: placement.map { String($0.prefix(120)) },
                              environment: environment.rawValue, at: Date().timeIntervalSince1970 * 1000)
@@ -87,7 +101,7 @@ actor Runner {
     }
 
     func run(appUserID: String?, email: String? = nil, phone: String? = nil) async {
-        guard let sender else { return }
+        let sender = await ready()
         var body: OpenBody
         if let pending = store.pending {
             body = pending

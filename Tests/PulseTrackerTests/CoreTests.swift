@@ -1,0 +1,106 @@
+import XCTest
+@testable import PulseTracker
+
+/// Stubbed network: a queue of (status, headers) answers; records requests.
+final class StubProtocol: URLProtocol {
+    static var answers: [(Int, [String: String])] = []
+    static var seen: [URLRequest] = []
+    static var bodies: [Data] = []
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        StubProtocol.seen.append(request)
+        if let s = request.httpBodyStream {
+            s.open(); var d = Data(); var buf = [UInt8](repeating: 0, count: 4096)
+            while s.hasBytesAvailable { let n = s.read(&buf, maxLength: buf.count); if n <= 0 { break }; d.append(buf, count: n) }
+            s.close(); StubProtocol.bodies.append(d)
+        } else if let b = request.httpBody { StubProtocol.bodies.append(b) }
+        let (code, headers) = StubProtocol.answers.isEmpty ? (200, [:]) : StubProtocol.answers.removeFirst()
+        let resp = HTTPURLResponse(url: request.url!, statusCode: code, httpVersion: nil, headerFields: headers)!
+        client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data("{}".utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
+final class CoreTests: XCTestCase {
+    var sleeps: [TimeInterval] = []
+    func sender() -> Sender {
+        let cfg = URLSessionConfiguration.ephemeral
+        cfg.protocolClasses = [StubProtocol.self]
+        var s = Sender(apiBase: URL(string: "https://api.example.test")!, appKey: "pk_test")
+        s.session = URLSession(configuration: cfg)
+        s.sleep = { [weak self] t in self?.sleeps.append(t) }
+        return s
+    }
+    let body = OpenBody(open_id: "3f2c9a8e-1b4d-4c6e-9a7f-2d1e0b9c8a76", environment: "production",
+                        app_user_id: "u1", clipboard_token: nil, install_referrer: nil, signals: Signals())
+
+    override func setUp() { StubProtocol.answers = []; StubProtocol.seen = []; StubProtocol.bodies = []; sleeps = [] }
+
+    /// The JSON the SDK sends is exactly the shared contract the worker tests replay.
+    func testEncodesTheSharedContract() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../contract/open-request.json").standardized
+        let fixture = try JSONDecoder().decode(OpenBody.self, from: Data(contentsOf: url))
+        let roundTrip = try JSONDecoder().decode(OpenBody.self, from: JSONEncoder().encode(fixture))
+        XCTAssertEqual(roundTrip, fixture)
+        let keys = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(fixture)) as? [String: Any]).keys
+        XCTAssertEqual(Set(keys), ["open_id", "environment", "app_user_id", "clipboard_token", "signals"])
+        XCTAssertNotNil(Handoff.token(in: fixture.clipboard_token!))
+    }
+
+    func testRequestShape() throws {
+        let r = try sender().request(body)
+        XCTAssertEqual(r.url?.absoluteString, "https://api.example.test/v1/app/open")
+        XCTAssertEqual(r.value(forHTTPHeaderField: "X-PT-App-Key"), "pk_test")
+        XCTAssertEqual(r.httpMethod, "POST")
+    }
+
+    func testOnlyPulseTrackerLinksLeaveTheClipboard() {
+        XCTAssertNotNil(Handoff.token(in: "https://go.pulsetracker.io/h/AbCdEfGhIjKlMnOp_123"))
+        XCTAssertNotNil(Handoff.token(in: "  pt1_AbCdEfGhIjKl  "))
+        XCTAssertNil(Handoff.token(in: "https://example.com/some/page"))
+        XCTAssertNil(Handoff.token(in: "http://go.pulsetracker.io/h/AbCdEfGhIjKlMnOp"), "https only")
+        XCTAssertNil(Handoff.token(in: "https://go.pulsetracker.io/h/short"))
+        XCTAssertNil(Handoff.token(in: "my bank password 1234"))
+        XCTAssertNil(Handoff.token(in: "pt1_has spaces in it"))
+    }
+
+    func testRetryRulesMatchTheServer() {
+        XCTAssertEqual(outcome(status: 200, retryAfter: nil), .done)
+        XCTAssertEqual(outcome(status: 400, retryAfter: nil), .done)
+        XCTAssertEqual(outcome(status: 401, retryAfter: nil), .done)
+        XCTAssertEqual(outcome(status: 429, retryAfter: "30"), .retry(after: 30))
+        XCTAssertEqual(outcome(status: 429, retryAfter: "99999"), .retry(after: 3600))
+        XCTAssertEqual(outcome(status: 503, retryAfter: nil), .retry(after: nil))
+        XCTAssertEqual(Backoff.next(2000), 3600)
+    }
+
+    func testSendRetriesThenStops() async {
+        StubProtocol.answers = [(503, [:]), (429, ["Retry-After": "7"]), (200, [:])]
+        let ok = await sender().send(body, startedAt: Date())
+        XCTAssertTrue(ok)
+        XCTAssertEqual(StubProtocol.seen.count, 3)
+        XCTAssertEqual(sleeps, [1, 7])
+    }
+
+    func testSendGivesUpAfter24h() async {
+        StubProtocol.answers = [(503, [:])]
+        let ok = await sender().send(body, startedAt: Date().addingTimeInterval(-25 * 3600))
+        XCTAssertTrue(ok)
+        XCTAssertEqual(StubProtocol.seen.count, 0)
+    }
+
+    func testStoreKeepsOpenIdAndPendingAcrossLaunches() {
+        let d = UserDefaults(suiteName: "pt-test-\(UUID())")!
+        let a = Store(d), b = Store(d)
+        XCTAssertEqual(a.openId, b.openId)
+        XCTAssertNotNil(UUID(uuidString: a.openId))
+        a.pending = body
+        XCTAssertEqual(b.pending, body)
+        a.pending = nil
+        XCTAssertNil(b.pending)
+    }
+}

@@ -70,11 +70,11 @@ Sandbox installs only match **test clicks**, and only join RevenueCat
 
 ## Conversions back to Meta / TikTok
 
-If you turn on "Send conversions" in PulseTracker, iPhone trials and purchases
-from paid-ad clicks are sent back to the ad network **only when the person
-allowed tracking** (App Tracking Transparency = authorized). The SDK only reads
-that status; it never shows the prompt. If your app does not ask for tracking,
-iPhone conversions are not sent (Android ones are).
+If you turn on "Send conversions" in PulseTracker, trials and purchases from
+people who came through your Meta or TikTok ad link are sent back to that
+network. The SDK reads the App Tracking Transparency status (it never shows the
+prompt) so PulseTracker can show it, and so accounts that turn on "Only send
+iPhone sales when the person allowed tracking" can respect it.
 
 ## Privacy
 

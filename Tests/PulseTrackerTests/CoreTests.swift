@@ -55,10 +55,11 @@ final class CoreTests: XCTestCase {
 
     func testIdentifyCarriesEmailAndPhone() throws {
         var b = body
-        b.email = "ana@example.com"; b.phone = "+5511912345678"
+        b.email = "ana@example.com"; b.phone = "+5511912345678"; b.att = "authorized"
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(b)) as? [String: Any])
         XCTAssertEqual(json["email"] as? String, "ana@example.com")
         XCTAssertEqual(json["phone"] as? String, "+5511912345678")
+        XCTAssertEqual(json["att"] as? String, "authorized")
         XCTAssertNil(try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(body)) as? [String: Any])["email"])
     }
 

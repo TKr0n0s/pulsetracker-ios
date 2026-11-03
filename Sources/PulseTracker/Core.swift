@@ -29,6 +29,8 @@ struct OpenBody: Codable, Equatable {
     /// identify(email:phone:) only — the server hashes them and never stores the raw value.
     var email: String? = nil
     var phone: String? = nil
+    /// App Tracking Transparency status (read, never prompted).
+    var att: String? = nil
 }
 
 /// Clipboard content PulseTracker may upload: only its own handoff link
@@ -104,6 +106,10 @@ final class Store {
     var reported: Bool {
         get { d.bool(forKey: "pt_reported") }
         set { d.set(newValue, forKey: "pt_reported") }
+    }
+    var sentAtt: String? {
+        get { d.string(forKey: "pt_sent_att") }
+        set { d.set(newValue, forKey: "pt_sent_att") }
     }
     var sentUserId: String? {
         get { d.string(forKey: "pt_sent_user") }

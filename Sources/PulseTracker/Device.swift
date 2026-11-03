@@ -5,9 +5,29 @@ import UIKit
 #if canImport(StoreKit)
 import StoreKit
 #endif
+#if canImport(AppTrackingTransparency)
+import AppTrackingTransparency
+#endif
 
 /// Everything that touches the device. The Foundation-only core stays testable on macOS.
 enum Device {
+    /// App Tracking Transparency status — READ only, never prompts (your app
+    /// decides whether to ask). PulseTracker sends an iPhone conversion back
+    /// to Meta/TikTok only when this is `authorized`.
+    static func attStatus() -> String? {
+        #if canImport(AppTrackingTransparency) && os(iOS)
+        switch ATTrackingManager.trackingAuthorizationStatus {
+        case .authorized: return "authorized"
+        case .denied: return "denied"
+        case .restricted: return "restricted"
+        case .notDetermined: return "not_determined"
+        @unknown default: return nil
+        }
+        #else
+        return nil
+        #endif
+    }
+
     @MainActor static func signals() -> Signals {
         var s = Signals(
             os_version: ProcessInfo.processInfo.operatingSystemVersionString.split(separator: " ").dropFirst().first.map(String.init),

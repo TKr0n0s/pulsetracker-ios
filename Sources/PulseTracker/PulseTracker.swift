@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(UIKit) && os(iOS)
+import UIKit
+#endif
 
 /// PulseTracker app-links SDK.
 ///
@@ -26,6 +29,24 @@ public enum PulseTracker {
             await Runner.shared.configure(Sender(apiBase: apiBase, appKey: appKey), env: env)
             await Runner.shared.run(appUserID: appUserID)
         }
+        observeForeground()
+    }
+
+    #if canImport(UIKit) && os(iOS)
+    nonisolated(unsafe) private static var foregroundObserver: NSObjectProtocol?
+    #endif
+
+    /// Your app may ask for tracking at any time; when it comes back to the
+    /// foreground the SDK reports a changed status (a no-op otherwise).
+    private static func observeForeground() {
+        #if canImport(UIKit) && os(iOS)
+        guard foregroundObserver == nil else { return }
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { _ in
+            Task.detached(priority: .utility) { await Runner.shared.run(appUserID: nil) }
+        }
+        #endif
     }
 
     /// Call after your user logs in (RevenueCat `logIn`) so the new id is known.
@@ -86,11 +107,16 @@ actor Runner {
             // Later identity (login): same open, new id — the server backfills it.
             body = OpenBody(open_id: store.openId, environment: environment.rawValue,
                             app_user_id: id, clipboard_token: nil, install_referrer: nil, signals: Signals())
+        } else if let att = Device.attStatus(), att != store.sentAtt {
+            // The app asked for tracking after the first open: report the new status.
+            body = OpenBody(open_id: store.openId, environment: environment.rawValue,
+                            app_user_id: appUserID ?? store.sentUserId, clipboard_token: nil, install_referrer: nil, signals: Signals())
         } else {
             return
         }
         if email != nil { body.email = email }
         if phone != nil { body.phone = phone }
+        body.att = Device.attStatus()
 
         store.pending = body
         let started = store.firstAttemptAt ?? Date()
@@ -99,6 +125,7 @@ actor Runner {
             store.pending = nil
             store.firstAttemptAt = nil
             if let id = body.app_user_id { store.sentUserId = id }
+            if let att = body.att { store.sentAtt = att }
         }
     }
 }

@@ -6,7 +6,7 @@ purchases and renewals are credited to the right link and social network.
 ## Install (one line of code)
 
 1. Xcode → File → Add Package Dependencies → paste
-   `https://github.com/TKr0n0s/pulsetracker-ios` → Up to Next Major `0.3.0`.
+   `https://github.com/TKr0n0s/pulsetracker-ios` → Up to Next Major `0.4.0`.
 2. After RevenueCat is configured:
 
 ```swift
@@ -67,6 +67,14 @@ Sandbox installs only match **test clicks**, and only join RevenueCat
 3. Install the TestFlight build, open it, allow paste if asked.
 4. App links → Overview should show the open as exact within a minute.
 5. Buy a sandbox subscription; it should appear under that link.
+
+## Conversions back to Meta / TikTok
+
+If you turn on "Send conversions" in PulseTracker, iPhone trials and purchases
+from paid-ad clicks are sent back to the ad network **only when the person
+allowed tracking** (App Tracking Transparency = authorized). The SDK only reads
+that status; it never shows the prompt. If your app does not ask for tracking,
+iPhone conversions are not sent (Android ones are).
 
 ## Privacy
 

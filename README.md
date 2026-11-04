@@ -21,8 +21,9 @@ PulseTracker.configure(appKey: "pk_…", appUserID: Purchases.shared.appUserID)
    person's email or phone, pass it too — `PulseTracker.identify(id, email: email)`
    — to see which web funnel each customer came through (hashed by PulseTracker,
    never stored as typed).
-4. In RevenueCat → Integrations → Webhooks, paste the URL and Authorization
-   value from PulseTracker → App links → Developer.
+4. Connect RevenueCat in PulseTracker → App links → Setup (step 3): paste one
+   RevenueCat secret API key and the webhook is created for you. (Or paste the
+   URL and Authorization value into RevenueCat → Integrations → Webhooks yourself.)
 
 That's all. Requires iOS 15+.
 

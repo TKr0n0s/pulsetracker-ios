@@ -100,7 +100,20 @@ actor Runner {
         _ = await sender.send(body, path: "v1/app/event", startedAt: Date())
     }
 
+    private var tail: Task<Void, Never>?
+
+    /// One report at a time. The actor is reentrant at every `await` (clipboard
+    /// read, network), so without this the configure run and the foreground
+    /// run could both take the first-launch branch: two paste prompts, two
+    /// reports. Each call waits for the previous one to finish.
     func run(appUserID: String?, email: String? = nil, phone: String? = nil) async {
+        let previous = tail
+        let next = Task { await previous?.value; await self.runOnce(appUserID: appUserID, email: email, phone: phone) }
+        tail = next
+        await next.value
+    }
+
+    private func runOnce(appUserID: String?, email: String?, phone: String?) async {
         let sender = await ready()
         var body: OpenBody
         if let pending = store.pending {

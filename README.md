@@ -6,7 +6,7 @@ purchases and renewals are credited to the right link and social network.
 ## Install (one line of code)
 
 1. Xcode → File → Add Package Dependencies → paste
-   `https://github.com/TKr0n0s/pulsetracker-ios` → Up to Next Major `0.4.2`.
+   `https://github.com/TKr0n0s/pulsetracker-ios` → Up to Next Major `0.4.3`.
 2. After RevenueCat is configured:
 
 ```swift
